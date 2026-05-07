@@ -13,6 +13,15 @@ interface PeerEntry {
   disconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
+export interface PeerHealthSnapshot {
+  connectionState: RTCPeerConnectionState;
+  iceState: RTCIceConnectionState;
+  rttMs: number | null;
+  bytesReceived: number;
+  packetsReceived: number;
+  packetsLost: number;
+}
+
 // ---------------------------------------------------------------------------
 // SDP Munging — Disable Opus DTX & set music-friendly codec parameters
 // ---------------------------------------------------------------------------
@@ -288,6 +297,52 @@ export class PeerMesh {
           console.warn(`[PeerMesh] addIceCandidate failed for ${from}`, err)
         );
     }
+  }
+
+  async getPeerHealthMap(): Promise<Map<string, PeerHealthSnapshot>> {
+    const result = new Map<string, PeerHealthSnapshot>();
+
+    for (const [peerId, entry] of this.peers) {
+      const { pc } = entry;
+      let rttMs: number | null = null;
+      let bytesReceived = 0;
+      let packetsReceived = 0;
+      let packetsLost = 0;
+
+      try {
+        const stats = await pc.getStats();
+        stats.forEach((report) => {
+          if (
+            report.type === "candidate-pair" &&
+            (report as Record<string, unknown>)["state"] === "succeeded"
+          ) {
+            const rtt = (report as Record<string, unknown>)[
+              "currentRoundTripTime"
+            ];
+            if (typeof rtt === "number") rttMs = Math.round(rtt * 1000);
+          }
+          if (report.type === "inbound-rtp") {
+            const r = report as Record<string, unknown>;
+            bytesReceived += (r["bytesReceived"] as number) ?? 0;
+            packetsReceived += (r["packetsReceived"] as number) ?? 0;
+            packetsLost += (r["packetsLost"] as number) ?? 0;
+          }
+        });
+      } catch {
+        // PC may be closed
+      }
+
+      result.set(peerId, {
+        connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        rttMs,
+        bytesReceived,
+        packetsReceived,
+        packetsLost,
+      });
+    }
+
+    return result;
   }
 
   destroy(): void {

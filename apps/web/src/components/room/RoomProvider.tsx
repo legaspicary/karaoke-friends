@@ -13,6 +13,7 @@ import { useSignaling, type ConnectionStatus } from "@/hooks/useSignaling";
 import { useRoomState, type RoomState } from "@/hooks/useRoomState";
 import { usePeerMesh } from "@/hooks/usePeerMesh";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { usePeerHealth, type PeerHealthInfo } from "@/hooks/usePeerHealth";
 
 export interface RoomContextValue {
   roomState: RoomState;
@@ -37,10 +38,10 @@ export interface RoomContextValue {
   setCurrentSong: (id: string | null) => void;
 
   // Effects (work on your mic)
-  reverbEnabled: boolean;
-  setReverbEnabled: (on: boolean) => void;
-  echoEnabled: boolean;
-  setEchoEnabled: (on: boolean) => void;
+  reverbMix: number;
+  setReverbMix: (amount: number) => void;
+  echoMix: number;
+  setEchoMix: (amount: number) => void;
   audioError: string | null;
   clearAudioError: () => void;
 
@@ -56,6 +57,7 @@ export interface RoomContextValue {
   remoteStreams: Map<string, MediaStream>;
   connectionStates: Map<string, RTCPeerConnectionState>;
   connectionStatus: ConnectionStatus;
+  peerHealth: Map<string, PeerHealthInfo>;
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null);
@@ -79,6 +81,7 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
   const { roomState, addSong, removeSong, reorderQueue, setCurrentSong } =
     useRoomState(signaling.client);
   const { mesh, remoteStreams, connectionStates } = usePeerMesh(signaling.client);
+  const peerHealth = usePeerHealth(mesh);
   const audioEngine = useAudioEngine();
 
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -149,10 +152,10 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     toggleMic, isMicActive: audioEngine.isMicActive,
     localMicStream,
     addSong, removeSong, reorderQueue, setCurrentSong,
-    reverbEnabled: audioEngine.reverbEnabled,
-    setReverbEnabled: audioEngine.setReverbEnabled,
-    echoEnabled: audioEngine.echoEnabled,
-    setEchoEnabled: audioEngine.setEchoEnabled,
+    reverbMix: audioEngine.reverbMix,
+    setReverbMix: audioEngine.setReverbMix,
+    echoMix: audioEngine.echoMix,
+    setEchoMix: audioEngine.setEchoMix,
     audioError: audioEngine.error,
     clearAudioError: audioEngine.clearError,
     monitorVolume: audioEngine.monitorVolume,
@@ -161,6 +164,7 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     peerVolumes, setPeerVolume,
     remoteStreams, connectionStates,
     connectionStatus: signaling.connectionStatus,
+    peerHealth,
   };
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;

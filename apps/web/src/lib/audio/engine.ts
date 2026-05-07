@@ -130,12 +130,12 @@ export class AudioEngine {
     this.micStream = null;
   }
 
-  setReverbEnabled(on: boolean): void {
-    this.reverb?.setEnabled(on);
+  setReverbMix(amount: number): void {
+    this.reverb?.setMix(amount);
   }
 
-  setEchoEnabled(on: boolean): void {
-    this.echo?.setEnabled(on);
+  setEchoMix(amount: number): void {
+    this.echo?.setMix(amount);
   }
 
   setMonitorVolume(vol: number): void {

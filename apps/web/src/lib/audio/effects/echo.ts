@@ -3,7 +3,8 @@ export interface EchoEffect {
   input: GainNode;
   /** Connect this to the next stage */
   output: GainNode;
-  setEnabled(on: boolean): void;
+  /** Set wet/dry mix: 0 = fully dry, 1 = full echo */
+  setMix(amount: number): void;
   dispose(): void;
 }
 
@@ -48,13 +49,10 @@ export function createEcho(ctx: AudioContext): EchoEffect {
   delay.connect(feedbackGain);
   feedbackGain.connect(delay);
 
-  function setEnabled(on: boolean): void {
+  function setMix(amount: number): void {
+    const a = Math.max(0, Math.min(1, amount));
     const now = ctx.currentTime;
-    if (on) {
-      wetGain.gain.setTargetAtTime(0.5, now, 0.01);
-    } else {
-      wetGain.gain.setTargetAtTime(0.0, now, 0.01);
-    }
+    wetGain.gain.setTargetAtTime(a * 0.6, now, 0.01);
   }
 
   function dispose(): void {
@@ -66,5 +64,5 @@ export function createEcho(ctx: AudioContext): EchoEffect {
     output.disconnect();
   }
 
-  return { input, output, setEnabled, dispose };
+  return { input, output, setMix, dispose };
 }

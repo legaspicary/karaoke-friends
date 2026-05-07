@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useRoom } from "./RoomProvider";
 import { useAudioLevels } from "@/hooks/useAudioLevels";
+import type { PeerQuality } from "@/hooks/usePeerHealth";
 
 export function MixerPanel() {
   const {
@@ -17,6 +18,7 @@ export function MixerPanel() {
     setPeerVolume,
     monitorVolume,
     setMonitorVolume,
+    peerHealth,
   } = useRoom();
 
   const djId = roomState.djId;
@@ -63,6 +65,10 @@ export function MixerPanel() {
         const isSharing = p.id === djId;
         const level = levels.get(p.id) ?? 0;
         const speaking = level > 0.02;
+        const health = isMe ? undefined : peerHealth.get(p.id);
+        const quality: PeerQuality | undefined = health?.quality;
+        const rttLabel =
+          health?.rttMs != null ? `${health.rttMs}ms` : undefined;
 
         if (isMe) {
           return (
@@ -93,6 +99,8 @@ export function MixerPanel() {
             onVolume={(v) => setPeerVolume(p.id, v)}
             level={level}
             isSpeaking={speaking}
+            connectionQuality={quality}
+            rttLabel={rttLabel}
           />
         );
       })}
@@ -118,7 +126,17 @@ interface MixerRowProps {
   isSpeaking: boolean;
   subtitle?: string;
   disabled?: boolean;
+  connectionQuality?: PeerQuality;
+  rttLabel?: string;
 }
+
+const qualityConfig: Record<PeerQuality, { color: string; label: string }> = {
+  good: { color: "bg-green-400", label: "Connected" },
+  degraded: { color: "bg-yellow-400", label: "Degraded" },
+  poor: { color: "bg-red-400", label: "Poor connection" },
+  disconnected: { color: "bg-red-600", label: "Disconnected" },
+  connecting: { color: "bg-white/40", label: "Connecting" },
+};
 
 function MixerRow({
   label,
@@ -131,8 +149,11 @@ function MixerRow({
   isSpeaking,
   subtitle,
   disabled,
+  connectionQuality,
+  rttLabel,
 }: MixerRowProps) {
   const pct = Math.round(volume * 100);
+  const qCfg = connectionQuality ? qualityConfig[connectionQuality] : null;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -161,12 +182,38 @@ function MixerRow({
               {badge}
             </span>
           )}
+          {/* Connection quality dot */}
+          {qCfg && (
+            <span
+              title={`${qCfg.label}${rttLabel ? ` (${rttLabel})` : ""}`}
+              className={`flex-none w-2 h-2 rounded-full ${qCfg.color} ${
+                connectionQuality === "connecting"
+                  ? "motion-safe:animate-pulse"
+                  : ""
+              }`}
+            />
+          )}
         </div>
 
-        <span className="text-white/40 text-xs tabular-nums w-8 text-right flex-none">
-          {pct}%
+        {/* RTT or volume % */}
+        <span className="text-white/40 text-xs tabular-nums w-12 text-right flex-none">
+          {rttLabel && connectionQuality !== "good"
+            ? rttLabel
+            : `${pct}%`}
         </span>
       </div>
+
+      {/* Warn on bad connections */}
+      {connectionQuality === "disconnected" && (
+        <p className="text-red-300/80 text-[11px] ml-9">
+          Peer disconnected — audio may be interrupted.
+        </p>
+      )}
+      {connectionQuality === "poor" && (
+        <p className="text-red-300/60 text-[11px] ml-9">
+          Weak connection — expect dropouts.
+        </p>
+      )}
 
       {subtitle && !disabled && (
         <p className="text-white/40 text-[11px] ml-9">{subtitle}</p>

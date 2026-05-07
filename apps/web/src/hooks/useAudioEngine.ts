@@ -12,10 +12,10 @@ export interface UseAudioEngineReturn {
   stopMic: () => void;
   isMicActive: boolean;
 
-  reverbEnabled: boolean;
-  setReverbEnabled: (on: boolean) => void;
-  echoEnabled: boolean;
-  setEchoEnabled: (on: boolean) => void;
+  reverbMix: number;
+  setReverbMix: (amount: number) => void;
+  echoMix: number;
+  setEchoMix: (amount: number) => void;
   monitorVolume: number;
   setMonitorVolume: (vol: number) => void;
 
@@ -28,8 +28,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
 
   const [isSharing, setIsSharing] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
-  const [reverbEnabled, setReverbEnabledState] = useState(false);
-  const [echoEnabled, setEchoEnabledState] = useState(false);
+  const [reverbMix, setReverbMixState] = useState(0);
+  const [echoMix, setEchoMixState] = useState(0);
   const [monitorVolume, setMonitorVolumeState] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,19 +81,19 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const stopMic = useCallback(() => {
     engineRef.current?.stopMic();
     setIsMicActive(false);
-    setReverbEnabledState(false);
-    setEchoEnabledState(false);
+    setReverbMixState(0);
+    setEchoMixState(0);
     setMonitorVolumeState(0);
   }, []);
 
-  const setReverbEnabled = useCallback((on: boolean) => {
-    getEngine().setReverbEnabled(on);
-    setReverbEnabledState(on);
+  const setReverbMix = useCallback((amount: number) => {
+    getEngine().setReverbMix(amount);
+    setReverbMixState(amount);
   }, [getEngine]);
 
-  const setEchoEnabled = useCallback((on: boolean) => {
-    getEngine().setEchoEnabled(on);
-    setEchoEnabledState(on);
+  const setEchoMix = useCallback((amount: number) => {
+    getEngine().setEchoMix(amount);
+    setEchoMixState(amount);
   }, [getEngine]);
 
   const setMonitorVolume = useCallback((vol: number) => {
@@ -106,8 +106,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
   return {
     startScreenShare, stopScreenShare, isSharing,
     startMic, stopMic, isMicActive,
-    reverbEnabled, setReverbEnabled,
-    echoEnabled, setEchoEnabled,
+    reverbMix, setReverbMix,
+    echoMix, setEchoMix,
     monitorVolume, setMonitorVolume,
     error, clearError,
   };

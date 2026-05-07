@@ -3,7 +3,8 @@ export interface ReverbEffect {
   input: GainNode;
   /** Connect this to the next stage */
   output: GainNode;
-  setEnabled(on: boolean): void;
+  /** Set wet/dry mix: 0 = fully dry, 1 = full reverb */
+  setMix(amount: number): void;
   dispose(): void;
 }
 
@@ -68,15 +69,11 @@ export async function createReverb(ctx: AudioContext): Promise<ReverbEffect> {
   convolver.connect(wetGain);
   wetGain.connect(output);
 
-  function setEnabled(on: boolean): void {
+  function setMix(amount: number): void {
+    const a = Math.max(0, Math.min(1, amount));
     const now = ctx.currentTime;
-    if (on) {
-      dryGain.gain.setTargetAtTime(0.8, now, 0.01);
-      wetGain.gain.setTargetAtTime(0.4, now, 0.01);
-    } else {
-      dryGain.gain.setTargetAtTime(1.0, now, 0.01);
-      wetGain.gain.setTargetAtTime(0.0, now, 0.01);
-    }
+    dryGain.gain.setTargetAtTime(1.0 - a * 0.3, now, 0.01);
+    wetGain.gain.setTargetAtTime(a * 0.5, now, 0.01);
   }
 
   function dispose(): void {
@@ -87,5 +84,5 @@ export async function createReverb(ctx: AudioContext): Promise<ReverbEffect> {
     output.disconnect();
   }
 
-  return { input, output, setEnabled, dispose };
+  return { input, output, setMix, dispose };
 }

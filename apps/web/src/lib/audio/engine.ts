@@ -26,8 +26,18 @@ export class AudioEngine {
   async startScreenShare(): Promise<ScreenShareStreams> {
     this.tabStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
-      audio: true,
-    });
+      audio: {
+        // Tab audio is already mixed/mastered music — disable all processing
+        // so Chrome doesn't treat it as speech and degrade it.
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        // Request stereo and full sample rate for music quality.
+        // Not all browsers honor these on getDisplayMedia, but they don't hurt.
+        channelCount: 2,
+        sampleRate: 48000,
+      },
+    } as DisplayMediaStreamOptions);
 
     if (this.tabStream.getAudioTracks().length === 0) {
       this.tabStream.getTracks().forEach((t) => t.stop());
@@ -51,9 +61,20 @@ export class AudioEngine {
 
     this.micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
+        // AEC stays on: without headphones, disabling it causes feedback loops.
+        // AEC will still suppress some overlapping voices, but disabling
+        // noiseSuppression (below) removes the worst of the compounding effect.
         echoCancellation: true,
-        noiseSuppression: true,
+        // CRITICAL: Disable noise suppression. Chrome's neural noise gate is
+        // trained on speech — it classifies quiet singing, harmonizing, humming,
+        // and reverb tails as "noise" and gates them. This is the single biggest
+        // cause of voices cutting out during simultaneous singing.
+        noiseSuppression: false,
+        // Disable AGC so singers control their own dynamics (soft vs loud).
         autoGainControl: false,
+        // Request full sample rate for vocal quality.
+        sampleRate: 48000,
+        channelCount: 1,
       },
       video: false,
     });

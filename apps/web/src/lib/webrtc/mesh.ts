@@ -13,6 +13,52 @@ interface PeerEntry {
   disconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
+// ---------------------------------------------------------------------------
+// SDP Munging — Disable Opus DTX & set music-friendly codec parameters
+// ---------------------------------------------------------------------------
+// DTX (Discontinuous Transmission) stops sending packets during "silence".
+// Its silence detector is calibrated for speech, not music/singing — it cuts
+// off quiet vocals, reverb tails, and soft musical passages.
+//
+// We also set stereo, high bitrate, constant bitrate, and full bandwidth
+// so Opus treats the audio as music rather than speech.
+// ---------------------------------------------------------------------------
+function mungeOpusSdp(sdp: string): string {
+  return sdp.replace(
+    /a=fmtp:(\d+) (.+)/g,
+    (match, payloadType: string, existingParams: string) => {
+      // Only modify Opus lines — verify the payload type maps to opus
+      const rtpmapRegex = new RegExp(
+        `a=rtpmap:${payloadType} opus/48000/2`
+      );
+      if (!rtpmapRegex.test(sdp)) {
+        return match; // Not Opus — leave unchanged
+      }
+
+      const params = new Map<string, string>();
+      for (const part of existingParams.split(";")) {
+        const eq = part.indexOf("=");
+        if (eq === -1) continue;
+        params.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
+      }
+
+      // Music-friendly overrides
+      params.set("usedtx", "0");                // Disable DTX — never drop packets
+      params.set("stereo", "1");                 // Allow stereo decoding
+      params.set("sprop-stereo", "1");           // Signal that we may send stereo
+      params.set("maxaveragebitrate", "128000");  // 128 kbps — near-transparent for music
+      params.set("maxplaybackrate", "48000");     // Full 48 kHz bandwidth
+      params.set("cbr", "1");                    // Constant bitrate — no quality dips
+
+      const newFmtp = Array.from(params.entries())
+        .map(([k, v]) => `${k}=${v}`)
+        .join(";");
+
+      return `a=fmtp:${payloadType} ${newFmtp}`;
+    }
+  );
+}
+
 export class PeerMesh {
   private peers: Map<string, PeerEntry> = new Map();
 
@@ -64,7 +110,13 @@ export class PeerMesh {
     for (const [label, stream] of this.localStreams) {
       const sendersForLabel: RTCRtpSender[] = [];
       for (const track of stream.getTracks()) {
-        sendersForLabel.push(pc.addTrack(track, stream));
+        const sender = pc.addTrack(track, stream);
+        sendersForLabel.push(sender);
+
+        if (track.kind === "audio") {
+          const mode = label === "screen" ? "music" : "voice";
+          this.configureAudioSender(sender, mode).catch(() => {});
+        }
       }
       senders.set(label, sendersForLabel);
     }
@@ -77,6 +129,8 @@ export class PeerMesh {
       }
       try {
         const offer = await pc.createOffer();
+        // Munge SDP to disable DTX and set music-quality Opus parameters
+        offer.sdp = mungeOpusSdp(offer.sdp!);
         await pc.setLocalDescription(offer);
         this.signaling.send({
           type: "signal",
@@ -126,6 +180,7 @@ export class PeerMesh {
     if (isInitiator && this.localStreams.size === 0) {
       try {
         const offer = await pc.createOffer();
+        offer.sdp = mungeOpusSdp(offer.sdp!);
         await pc.setLocalDescription(offer);
         this.signaling.send({
           type: "signal",
@@ -193,10 +248,16 @@ export class PeerMesh {
         }
       }
 
-      // Add new tracks
+      // Add new tracks and configure audio senders for music-quality encoding
       const newSenders: RTCRtpSender[] = [];
       for (const track of stream.getTracks()) {
-        newSenders.push(entry.pc.addTrack(track, stream));
+        const sender = entry.pc.addTrack(track, stream);
+        newSenders.push(sender);
+
+        if (track.kind === "audio") {
+          const mode = label === "screen" ? "music" : "voice";
+          this.configureAudioSender(sender, mode).catch(() => {});
+        }
       }
       entry.senders.set(label, newSenders);
     }
@@ -240,6 +301,35 @@ export class PeerMesh {
   // Internal helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Configure an audio RTCRtpSender for high-quality audio.
+   *
+   * `setParameters` adjusts the Opus encoder's bitrate allocation at the
+   * sender level (complementing the SDP-level fmtp overrides).
+   *
+   * - "music" (tab audio): 128 kbps — near-transparent for stereo music
+   * - "voice" (singing mic): 64 kbps — well above the 32 kbps speech default
+   */
+  private async configureAudioSender(
+    sender: RTCRtpSender,
+    mode: "music" | "voice"
+  ): Promise<void> {
+    const params = sender.getParameters();
+    if (!params.encodings || params.encodings.length === 0) {
+      params.encodings = [{}];
+    }
+
+    for (const encoding of params.encodings) {
+      encoding.maxBitrate = mode === "music" ? 128_000 : 64_000;
+    }
+
+    try {
+      await sender.setParameters(params);
+    } catch (err) {
+      console.warn("[PeerMesh] configureAudioSender setParameters failed:", err);
+    }
+  }
+
   private async handleSdp(
     peerId: string,
     entry: PeerEntry,
@@ -252,6 +342,8 @@ export class PeerMesh {
 
       if (sdp.type === "offer") {
         const answer = await pc.createAnswer();
+        // Munge SDP to disable DTX and set music-quality Opus parameters
+        answer.sdp = mungeOpusSdp(answer.sdp!);
         await pc.setLocalDescription(answer);
         this.signaling.send({
           type: "signal",

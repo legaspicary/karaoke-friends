@@ -1,0 +1,16 @@
+{
+  "name": "@karaoke-friends/party",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "partyserver": "^0"
+  },
+  "devDependencies": {
+    "wrangler": "^4",
+    "typescript": "^5",
+    "@cloudflare/workers-types": "^4"
+  }
+}

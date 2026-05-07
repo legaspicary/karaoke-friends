@@ -20,6 +20,11 @@ export class AudioEngine {
   private reverb: ReverbEffect | null = null;
   private echo: EchoEffect | null = null;
 
+  // Vocal recovery (post-AEC compensation)
+  private vocalCompressor: DynamicsCompressorNode | null = null;
+  private presenceEq: BiquadFilterNode | null = null;
+  private _vocalBoostEnabled = false;
+
   // Monitor (hear yourself — needs headphones)
   private monitorGain: GainNode | null = null;
 
@@ -84,6 +89,13 @@ export class AudioEngine {
       Promise.resolve(createEcho(ctx)),
     ]);
 
+    this.vocalCompressor = ctx.createDynamicsCompressor();
+    this.presenceEq = ctx.createBiquadFilter();
+    this.presenceEq.type = "peaking";
+    this.presenceEq.frequency.value = 3000;
+    this.presenceEq.Q.value = 1.0;
+    this.applyVocalBoostParams(this._vocalBoostEnabled);
+
     this.micGain = ctx.createGain();
     this.micGain.gain.value = 1.0;
 
@@ -96,8 +108,10 @@ export class AudioEngine {
     this.micDestination = ctx.createMediaStreamDestination();
     this.micSource = ctx.createMediaStreamSource(this.micStream);
 
-    // mic → gain → reverb → echo → processed gain → destination + monitor
-    this.micSource.connect(this.micGain);
+    // mic → compressor → presenceEq → gain → reverb → echo → processed gain → destination + monitor
+    this.micSource.connect(this.vocalCompressor);
+    this.vocalCompressor.connect(this.presenceEq);
+    this.presenceEq.connect(this.micGain);
     this.micGain.connect(this.reverb.input);
     this.reverb.output.connect(this.echo.input);
     this.echo.output.connect(this.processedMicGain);
@@ -111,6 +125,8 @@ export class AudioEngine {
   }
 
   stopMic(): void {
+    this.vocalCompressor?.disconnect();
+    this.presenceEq?.disconnect();
     this.micSource?.disconnect();
     this.micGain?.disconnect();
     this.reverb?.dispose();
@@ -128,6 +144,8 @@ export class AudioEngine {
     this.monitorGain = null;
     this.micDestination = null;
     this.micStream = null;
+    this.vocalCompressor = null;
+    this.presenceEq = null;
   }
 
   setReverbMix(amount: number): void {
@@ -148,6 +166,15 @@ export class AudioEngine {
     }
   }
 
+  setVocalBoost(enabled: boolean): void {
+    this._vocalBoostEnabled = enabled;
+    this.applyVocalBoostParams(enabled);
+  }
+
+  get vocalBoostEnabled(): boolean {
+    return this._vocalBoostEnabled;
+  }
+
   setMonitorVolume(vol: number): void {
     if (this.monitorGain && this.ctx) {
       this.monitorGain.gain.setTargetAtTime(
@@ -165,6 +192,27 @@ export class AudioEngine {
       this.ctx.close().catch(() => {});
     }
     this.ctx = null;
+  }
+
+  private applyVocalBoostParams(enabled: boolean): void {
+    if (!this.vocalCompressor || !this.presenceEq || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    if (enabled) {
+      this.vocalCompressor.threshold.setTargetAtTime(-24, now, 0.01);
+      this.vocalCompressor.ratio.setTargetAtTime(4, now, 0.01);
+      this.vocalCompressor.knee.setTargetAtTime(10, now, 0.01);
+      this.vocalCompressor.attack.setTargetAtTime(0.003, now, 0.01);
+      this.vocalCompressor.release.setTargetAtTime(0.15, now, 0.01);
+      this.presenceEq.gain.setTargetAtTime(4, now, 0.01);
+    } else {
+      this.vocalCompressor.threshold.setTargetAtTime(0, now, 0.01);
+      this.vocalCompressor.ratio.setTargetAtTime(1, now, 0.01);
+      this.vocalCompressor.knee.setTargetAtTime(0, now, 0.01);
+      this.vocalCompressor.attack.setTargetAtTime(0.003, now, 0.01);
+      this.vocalCompressor.release.setTargetAtTime(0.25, now, 0.01);
+      this.presenceEq.gain.setTargetAtTime(0, now, 0.01);
+    }
   }
 
   private ensureContext(): void {

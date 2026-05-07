@@ -21,6 +21,9 @@ export interface UseAudioEngineReturn {
   monitorVolume: number;
   setMonitorVolume: (vol: number) => void;
 
+  vocalBoost: boolean;
+  setVocalBoost: (enabled: boolean) => void;
+
   error: string | null;
   clearError: () => void;
 }
@@ -34,6 +37,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [reverbMix, setReverbMixState] = useState(0);
   const [echoMix, setEchoMixState] = useState(0);
   const [monitorVolume, setMonitorVolumeState] = useState(0);
+  const [vocalBoost, setVocalBoostState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getEngine = useCallback((): AudioEngine => {
@@ -88,6 +92,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setReverbMixState(0);
     setEchoMixState(0);
     setMonitorVolumeState(0);
+    setVocalBoostState(false);
   }, []);
 
   const setMicGain = useCallback((vol: number) => {
@@ -110,6 +115,11 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setMonitorVolumeState(vol);
   }, [getEngine]);
 
+  const setVocalBoost = useCallback((enabled: boolean) => {
+    getEngine().setVocalBoost(enabled);
+    setVocalBoostState(enabled);
+  }, [getEngine]);
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -119,6 +129,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     reverbMix, setReverbMix,
     echoMix, setEchoMix,
     monitorVolume, setMonitorVolume,
+    vocalBoost, setVocalBoost,
     error, clearError,
   };
 }

@@ -138,9 +138,13 @@ export class AudioEngine {
     this.echo?.setEnabled(on);
   }
 
-  setMonitorEnabled(on: boolean): void {
+  setMonitorVolume(vol: number): void {
     if (this.monitorGain && this.ctx) {
-      this.monitorGain.gain.setTargetAtTime(on ? 1.0 : 0.0, this.ctx.currentTime, 0.01);
+      this.monitorGain.gain.setTargetAtTime(
+        Math.max(0, Math.min(1, vol)),
+        this.ctx.currentTime,
+        0.01,
+      );
     }
   }
 

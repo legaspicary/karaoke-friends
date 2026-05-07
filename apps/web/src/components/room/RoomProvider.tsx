@@ -28,6 +28,7 @@ export interface RoomContextValue {
   // Mic (everyone)
   toggleMic: () => Promise<void>;
   isMicActive: boolean;
+  localMicStream: MediaStream | null;
 
   // Room actions
   addSong: (song: { title: string; url?: string }) => void;
@@ -40,10 +41,16 @@ export interface RoomContextValue {
   setReverbEnabled: (on: boolean) => void;
   echoEnabled: boolean;
   setEchoEnabled: (on: boolean) => void;
-  monitorEnabled: boolean;
-  setMonitorEnabled: (on: boolean) => void;
   audioError: string | null;
   clearAudioError: () => void;
+
+  // Volume mixer
+  monitorVolume: number;
+  setMonitorVolume: (vol: number) => void;
+  screenVolume: number;
+  setScreenVolume: (vol: number) => void;
+  peerVolumes: Map<string, number>;
+  setPeerVolume: (peerId: string, vol: number) => void;
 
   // WebRTC
   remoteStreams: Map<string, MediaStream>;
@@ -75,6 +82,17 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
   const audioEngine = useAudioEngine();
 
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
+  const [localMicStream, setLocalMicStream] = useState<MediaStream | null>(null);
+  const [screenVolume, setScreenVolume] = useState(1);
+  const [peerVolumes, setPeerVolumesMap] = useState<Map<string, number>>(() => new Map());
+
+  const setPeerVolume = useCallback((peerId: string, vol: number) => {
+    setPeerVolumesMap((prev) => {
+      const next = new Map(prev);
+      next.set(peerId, vol);
+      return next;
+    });
+  }, []);
 
   // Send the join message AFTER useRoomState and usePeerMesh have subscribed.
   // React runs effects in declaration order, so this runs last.
@@ -112,10 +130,12 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     if (audioEngine.isMicActive) {
       audioEngine.stopMic();
       mesh?.setLocalStream("mic", null);
+      setLocalMicStream(null);
     } else {
       try {
         const micStream = await audioEngine.startMic();
         mesh?.setLocalStream("mic", micStream);
+        setLocalMicStream(micStream);
       } catch (err) {
         console.error("[RoomProvider] toggleMic failed", err);
       }
@@ -127,15 +147,18 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     startSharing, stopSharing, isSharing: audioEngine.isSharing,
     localScreenStream,
     toggleMic, isMicActive: audioEngine.isMicActive,
+    localMicStream,
     addSong, removeSong, reorderQueue, setCurrentSong,
     reverbEnabled: audioEngine.reverbEnabled,
     setReverbEnabled: audioEngine.setReverbEnabled,
     echoEnabled: audioEngine.echoEnabled,
     setEchoEnabled: audioEngine.setEchoEnabled,
-    monitorEnabled: audioEngine.monitorEnabled,
-    setMonitorEnabled: audioEngine.setMonitorEnabled,
     audioError: audioEngine.error,
     clearAudioError: audioEngine.clearError,
+    monitorVolume: audioEngine.monitorVolume,
+    setMonitorVolume: audioEngine.setMonitorVolume,
+    screenVolume, setScreenVolume,
+    peerVolumes, setPeerVolume,
     remoteStreams, connectionStates,
     connectionStatus: signaling.connectionStatus,
   };

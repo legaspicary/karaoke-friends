@@ -16,8 +16,8 @@ export interface UseAudioEngineReturn {
   setReverbEnabled: (on: boolean) => void;
   echoEnabled: boolean;
   setEchoEnabled: (on: boolean) => void;
-  monitorEnabled: boolean;
-  setMonitorEnabled: (on: boolean) => void;
+  monitorVolume: number;
+  setMonitorVolume: (vol: number) => void;
 
   error: string | null;
   clearError: () => void;
@@ -30,7 +30,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [isMicActive, setIsMicActive] = useState(false);
   const [reverbEnabled, setReverbEnabledState] = useState(false);
   const [echoEnabled, setEchoEnabledState] = useState(false);
-  const [monitorEnabled, setMonitorEnabledState] = useState(false);
+  const [monitorVolume, setMonitorVolumeState] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const getEngine = useCallback((): AudioEngine => {
@@ -83,7 +83,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setIsMicActive(false);
     setReverbEnabledState(false);
     setEchoEnabledState(false);
-    setMonitorEnabledState(false);
+    setMonitorVolumeState(0);
   }, []);
 
   const setReverbEnabled = useCallback((on: boolean) => {
@@ -96,9 +96,9 @@ export function useAudioEngine(): UseAudioEngineReturn {
     setEchoEnabledState(on);
   }, [getEngine]);
 
-  const setMonitorEnabled = useCallback((on: boolean) => {
-    getEngine().setMonitorEnabled(on);
-    setMonitorEnabledState(on);
+  const setMonitorVolume = useCallback((vol: number) => {
+    getEngine().setMonitorVolume(vol);
+    setMonitorVolumeState(vol);
   }, [getEngine]);
 
   const clearError = useCallback(() => setError(null), []);
@@ -108,7 +108,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     startMic, stopMic, isMicActive,
     reverbEnabled, setReverbEnabled,
     echoEnabled, setEchoEnabled,
-    monitorEnabled, setMonitorEnabled,
+    monitorVolume, setMonitorVolume,
     error, clearError,
   };
 }

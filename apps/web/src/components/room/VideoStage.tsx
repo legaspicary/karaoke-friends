@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRoom } from "./RoomProvider";
 import { ShareButton, MicButton } from "./TakeMicButton";
 
-function RemoteAudio({ stream }: { stream: MediaStream }) {
+function RemoteAudio({ stream, volume }: { stream: MediaStream; volume: number }) {
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -12,6 +12,9 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
     el.srcObject = stream;
     el.play().catch(() => {});
   }, [stream]);
+  useEffect(() => {
+    if (ref.current) ref.current.volume = Math.max(0, Math.min(1, volume));
+  }, [volume]);
   return <audio ref={ref} autoPlay />;
 }
 
@@ -23,6 +26,8 @@ export function VideoStage() {
     remoteStreams,
     localScreenStream,
     connectionStatus,
+    screenVolume,
+    peerVolumes,
   } = useRoom();
 
   const djId = roomState.djId;
@@ -39,6 +44,9 @@ export function VideoStage() {
       console.warn("[VideoStage] Remote video play() failed, will retry on user gesture", err);
     });
   }, [remoteDJStream]);
+  useEffect(() => {
+    if (remoteVideoRef.current) remoteVideoRef.current.volume = Math.max(0, Math.min(1, screenVolume));
+  }, [screenVolume]);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -63,7 +71,7 @@ export function VideoStage() {
     <div className="flex flex-col gap-3 h-full">
       {/* Hidden audio elements for non-DJ peer streams (mics) */}
       {audioOnlyStreams.map(([peerId, stream]) => (
-        <RemoteAudio key={peerId} stream={stream} />
+        <RemoteAudio key={peerId} stream={stream} volume={peerVolumes.get(peerId) ?? 1} />
       ))}
 
       {/* Video area */}

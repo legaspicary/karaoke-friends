@@ -138,6 +138,16 @@ export class AudioEngine {
     this.echo?.setMix(amount);
   }
 
+  setMicGain(vol: number): void {
+    if (this.micGain && this.ctx) {
+      this.micGain.gain.setTargetAtTime(
+        Math.max(0, Math.min(2, vol)),
+        this.ctx.currentTime,
+        0.01,
+      );
+    }
+  }
+
   setMonitorVolume(vol: number): void {
     if (this.monitorGain && this.ctx) {
       this.monitorGain.gain.setTargetAtTime(

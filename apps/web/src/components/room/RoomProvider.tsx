@@ -38,6 +38,8 @@ export interface RoomContextValue {
   setCurrentSong: (id: string | null) => void;
 
   // Effects (work on your mic)
+  micGain: number;
+  setMicGain: (vol: number) => void;
   reverbMix: number;
   setReverbMix: (amount: number) => void;
   echoMix: number;
@@ -152,6 +154,8 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     toggleMic, isMicActive: audioEngine.isMicActive,
     localMicStream,
     addSong, removeSong, reorderQueue, setCurrentSong,
+    micGain: audioEngine.micGain,
+    setMicGain: audioEngine.setMicGain,
     reverbMix: audioEngine.reverbMix,
     setReverbMix: audioEngine.setReverbMix,
     echoMix: audioEngine.echoMix,

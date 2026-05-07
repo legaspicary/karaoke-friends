@@ -12,6 +12,8 @@ export interface UseAudioEngineReturn {
   stopMic: () => void;
   isMicActive: boolean;
 
+  micGain: number;
+  setMicGain: (vol: number) => void;
   reverbMix: number;
   setReverbMix: (amount: number) => void;
   echoMix: number;
@@ -28,6 +30,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
 
   const [isSharing, setIsSharing] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
+  const [micGain, setMicGainState] = useState(1);
   const [reverbMix, setReverbMixState] = useState(0);
   const [echoMix, setEchoMixState] = useState(0);
   const [monitorVolume, setMonitorVolumeState] = useState(0);
@@ -81,10 +84,16 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const stopMic = useCallback(() => {
     engineRef.current?.stopMic();
     setIsMicActive(false);
+    setMicGainState(1);
     setReverbMixState(0);
     setEchoMixState(0);
     setMonitorVolumeState(0);
   }, []);
+
+  const setMicGain = useCallback((vol: number) => {
+    getEngine().setMicGain(vol);
+    setMicGainState(vol);
+  }, [getEngine]);
 
   const setReverbMix = useCallback((amount: number) => {
     getEngine().setReverbMix(amount);
@@ -106,6 +115,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   return {
     startScreenShare, stopScreenShare, isSharing,
     startMic, stopMic, isMicActive,
+    micGain, setMicGain,
     reverbMix, setReverbMix,
     echoMix, setEchoMix,
     monitorVolume, setMonitorVolume,

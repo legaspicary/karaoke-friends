@@ -3,7 +3,7 @@
 import { useRoom } from "./RoomProvider";
 
 export function EffectsPanel() {
-  const { reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive } = useRoom();
+  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive } = useRoom();
 
   if (!isMicActive) return null;
 
@@ -12,6 +12,15 @@ export function EffectsPanel() {
       <h2 className="text-white/90 font-semibold text-sm tracking-wide uppercase">
         Vocal Effects
       </h2>
+
+      <EffectSlider
+        label="Mic Gain"
+        icon="🎤"
+        value={micGain}
+        onChange={setMicGain}
+        max={2}
+        defaultValue={1}
+      />
 
       <EffectSlider
         label="Reverb"
@@ -34,10 +43,12 @@ interface EffectSliderProps {
   icon: string;
   value: number;
   onChange: (v: number) => void;
+  max?: number;
+  defaultValue?: number;
 }
 
-function EffectSlider({ label, icon, value, onChange }: EffectSliderProps) {
-  const pct = Math.round(value * 100);
+function EffectSlider({ label, icon, value, onChange, max = 1, defaultValue = 0.5 }: EffectSliderProps) {
+  const pct = Math.round((value / max) * 100);
   const active = value > 0;
 
   return (
@@ -65,8 +76,8 @@ function EffectSlider({ label, icon, value, onChange }: EffectSliderProps) {
           min={0}
           max={100}
           value={pct}
-          onChange={(e) => onChange(Number(e.target.value) / 100)}
-          aria-label={`${label} mix`}
+          onChange={(e) => onChange((Number(e.target.value) / 100) * max)}
+          aria-label={`${label} level`}
           className="flex-1 h-1 appearance-none bg-transparent cursor-pointer
             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-400 [&::-webkit-slider-thumb]:shadow-md
             [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/20
@@ -75,8 +86,8 @@ function EffectSlider({ label, icon, value, onChange }: EffectSliderProps) {
             focus-visible:outline-none focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-purple-400"
         />
         <button
-          onClick={() => onChange(value > 0 ? 0 : 0.5)}
-          aria-label={value > 0 ? `Disable ${label}` : `Enable ${label}`}
+          onClick={() => onChange(value > 0 ? 0 : defaultValue)}
+          aria-label={value > 0 ? `Mute ${label}` : `Reset ${label}`}
           className="text-white/50 hover:text-white/80 transition-colors flex-none text-xs"
         >
           {active ? "ON" : "OFF"}

@@ -77,15 +77,6 @@ export function ScreenShareGuide({
             }
           />
 
-          {/* Headphone warning */}
-          <div className="mt-1 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-            <span className="text-2xl leading-none mt-0.5" aria-hidden="true">🎧</span>
-            <p className="text-amber-200/90 text-sm leading-relaxed">
-              <span className="font-semibold text-amber-300">Wear headphones</span> to
-              avoid echo feedback reaching other participants.
-            </p>
-          </div>
-
           {/* Error state */}
           {error && (
             <div

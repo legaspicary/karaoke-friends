@@ -4,6 +4,17 @@ import { useEffect, useRef } from "react";
 import { useRoom } from "./RoomProvider";
 import { ShareButton, MicButton } from "./TakeMicButton";
 
+function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.srcObject = stream;
+    el.play().catch(() => {});
+  }, [stream]);
+  return <audio ref={ref} autoPlay />;
+}
+
 export function VideoStage() {
   const {
     roomState,
@@ -40,8 +51,21 @@ export function VideoStage() {
   const djParticipant = djId ? roomState.participants.find((p) => p.id === djId) : null;
   const connectionFailed = connectionStatus === "failed";
 
+  // Streams that aren't already played by the DJ <video> element need
+  // their own <audio> so everyone hears each other's mics.
+  // - Non-DJ user: DJ stream plays in <video>, all others need <audio>
+  // - DJ user: local preview is muted, so ALL remote streams need <audio>
+  const audioOnlyStreams = Array.from(remoteStreams.entries()).filter(
+    ([peerId]) => peerId !== remoteDJId
+  );
+
   return (
     <div className="flex flex-col gap-3 h-full">
+      {/* Hidden audio elements for non-DJ peer streams (mics) */}
+      {audioOnlyStreams.map(([peerId, stream]) => (
+        <RemoteAudio key={peerId} stream={stream} />
+      ))}
+
       {/* Video area */}
       <div
         className={`relative w-full flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col items-center justify-center ${

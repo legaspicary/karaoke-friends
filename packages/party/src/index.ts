@@ -6,6 +6,7 @@ export { Room };
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "https://karaoke-friends-web.vercel.app",
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {

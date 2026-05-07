@@ -71,6 +71,10 @@ export class PeerMesh {
 
     pc.onnegotiationneeded = async () => {
       console.log(`[PeerMesh] onnegotiationneeded for ${peerId}, signalingState=${pc.signalingState}`);
+      if (pc.signalingState !== "stable") {
+        console.log(`[PeerMesh] Skipping negotiation for ${peerId} — not in stable state`);
+        return;
+      }
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -98,19 +102,13 @@ export class PeerMesh {
 
     // Incoming tracks → collect into the remote stream
     pc.ontrack = (ev) => {
-      console.log(`[PeerMesh] ontrack from ${peerId}: kind=${ev.track.kind}, streams=${ev.streams.length}`);
-      for (const stream of ev.streams) {
-        for (const track of stream.getTracks()) {
-          if (!remoteStream.getTracks().includes(track)) {
-            remoteStream.addTrack(track);
-          }
-        }
-      }
-      if (ev.streams.length === 0) {
+      console.log(`[PeerMesh] ontrack from ${peerId}: kind=${ev.track.kind}, readyState=${ev.track.readyState}, streams=${ev.streams.length}`);
+      if (!remoteStream.getTracks().includes(ev.track)) {
         remoteStream.addTrack(ev.track);
       }
-      console.log(`[PeerMesh] remoteStream for ${peerId} now has ${remoteStream.getTracks().length} tracks: ${remoteStream.getTracks().map(t => t.kind).join(", ")}`);
-      this.onRemoteStream(peerId, remoteStream);
+      console.log(`[PeerMesh] remoteStream for ${peerId} now has ${remoteStream.getTracks().length} tracks: ${remoteStream.getTracks().map(t => `${t.kind}(${t.readyState})`).join(", ")}`);
+      // Pass a NEW MediaStream so React detects the reference change
+      this.onRemoteStream(peerId, new MediaStream(remoteStream.getTracks()));
     };
 
     // Connection state changes
@@ -205,12 +203,16 @@ export class PeerMesh {
   }
 
   handleSignal(from: string, data: unknown): void {
-    const entry = this.peers.get(from);
+    let entry = this.peers.get(from);
     if (!entry) {
       console.warn(
-        `[PeerMesh] Received signal from unknown peer ${from}. Known peers: [${[...this.peers.keys()].join(", ")}]`
+        `[PeerMesh] Received signal from unknown peer ${from}. Known peers: [${[...this.peers.keys()].join(", ")}]. Auto-creating as non-initiator.`
       );
-      return;
+      // Race condition: room-state may not have been processed yet.
+      // Create the peer on-the-fly so the offer is not lost.
+      this.addPeer(from, false);
+      entry = this.peers.get(from);
+      if (!entry) return;
     }
 
     const signal = data as SignalData;

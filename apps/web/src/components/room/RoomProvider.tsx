@@ -4,6 +4,8 @@ import {
   createContext,
   useContext,
   useCallback,
+  useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -73,6 +75,16 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
   const audioEngine = useAudioEngine();
 
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
+
+  // Send the join message AFTER useRoomState and usePeerMesh have subscribed.
+  // React runs effects in declaration order, so this runs last.
+  const hasJoined = useRef(false);
+  useEffect(() => {
+    if (signaling.connectionStatus === "connected" && !hasJoined.current) {
+      signaling.join();
+      hasJoined.current = true;
+    }
+  }, [signaling.connectionStatus, signaling.join]);
 
   const myPeerId = roomState.myPeerId;
   const isDJ = myPeerId !== null && roomState.djId === myPeerId;

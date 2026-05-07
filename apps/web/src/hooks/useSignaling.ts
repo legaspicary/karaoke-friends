@@ -13,6 +13,7 @@ export interface UseSignalingReturn {
   client: SignalingClient | null;
   connectionStatus: ConnectionStatus;
   send: (msg: ClientMessage) => void;
+  join: () => void;
   on: <K extends keyof SignalingEventMap>(
     event: K,
     listener: (payload: SignalingEventMap[K]) => void
@@ -62,6 +63,10 @@ export function useSignaling(
     clientRef.current?.send(msg);
   }, []);
 
+  const join = useCallback(() => {
+    clientRef.current?.join();
+  }, []);
+
   const on = useCallback(
     <K extends keyof SignalingEventMap>(
       event: K,
@@ -86,6 +91,7 @@ export function useSignaling(
     client: clientRef.current,
     connectionStatus,
     send,
+    join,
     on,
     off,
   };

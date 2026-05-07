@@ -21,16 +21,20 @@ export function VideoStage() {
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
-    if (remoteVideoRef.current && remoteDJStream) {
-      remoteVideoRef.current.srcObject = remoteDJStream;
-    }
+    const el = remoteVideoRef.current;
+    if (!el || !remoteDJStream) return;
+    el.srcObject = remoteDJStream;
+    el.play().catch((err) => {
+      console.warn("[VideoStage] Remote video play() failed, will retry on user gesture", err);
+    });
   }, [remoteDJStream]);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
-    if (localVideoRef.current && localScreenStream) {
-      localVideoRef.current.srcObject = localScreenStream;
-    }
+    const el = localVideoRef.current;
+    if (!el || !localScreenStream) return;
+    el.srcObject = localScreenStream;
+    el.play().catch(() => {});
   }, [localScreenStream]);
 
   const djParticipant = djId ? roomState.participants.find((p) => p.id === djId) : null;

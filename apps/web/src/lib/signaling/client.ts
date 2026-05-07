@@ -20,6 +20,7 @@ export class SignalingClient {
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
+  private hasJoined = false;
 
   private readonly roomCode: string;
   private readonly workerUrl: string;
@@ -45,6 +46,11 @@ export class SignalingClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     }
+  }
+
+  join(): void {
+    this.hasJoined = true;
+    this.send({ type: "join", name: this.playerName });
   }
 
   on<K extends keyof SignalingEventMap>(
@@ -111,8 +117,9 @@ export class SignalingClient {
         return;
       }
       this.reconnectAttempts = 0;
-      // Send join as first message
-      this.send({ type: "join", name: this.playerName });
+      if (this.hasJoined) {
+        this.send({ type: "join", name: this.playerName });
+      }
       this.emit("open", undefined as void);
     };
 

@@ -3,7 +3,7 @@
 import { useRoom } from "./RoomProvider";
 
 export function EffectsPanel() {
-  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, vocalBoost, setVocalBoost, isMicActive } = useRoom();
+  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive } = useRoom();
 
   if (!isMicActive) return null;
 
@@ -34,45 +34,6 @@ export function EffectsPanel() {
         value={echoMix}
         onChange={setEchoMix}
       />
-
-      <div className="border-t border-white/10 pt-3 mt-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span
-              className={`block w-7 h-7 rounded-full text-center text-sm leading-7 transition-shadow ${
-                vocalBoost
-                  ? "shadow-[0_0_6px_1px_rgba(168,85,247,0.5)] bg-purple-500/20"
-                  : "bg-white/5"
-              }`}
-              aria-hidden="true"
-            >
-              ✨
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-white/80 text-sm font-medium">Vocal Boost</span>
-              <span className="text-white/30 text-[10px] font-medium uppercase tracking-wider">Beta</span>
-            </div>
-          </div>
-          <button
-            role="switch"
-            aria-checked={vocalBoost}
-            aria-label="Toggle Vocal Boost"
-            onClick={() => setVocalBoost(!vocalBoost)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-purple-400 outline-none ${
-              vocalBoost ? "bg-purple-600" : "bg-white/20"
-            }`}
-          >
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-                vocalBoost ? "translate-x-[18px]" : "translate-x-[3px]"
-              }`}
-            />
-          </button>
-        </div>
-        <p className="text-white/30 text-xs mt-1.5 ml-9 leading-relaxed">
-          Recovers vocals that get suppressed when playing on speakers
-        </p>
-      </div>
     </div>
   );
 }

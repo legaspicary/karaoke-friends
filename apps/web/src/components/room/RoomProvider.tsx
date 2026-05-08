@@ -44,8 +44,6 @@ export interface RoomContextValue {
   setReverbMix: (amount: number) => void;
   echoMix: number;
   setEchoMix: (amount: number) => void;
-  vocalBoost: boolean;
-  setVocalBoost: (enabled: boolean) => void;
   audioError: string | null;
   clearAudioError: () => void;
 
@@ -162,8 +160,6 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     setReverbMix: audioEngine.setReverbMix,
     echoMix: audioEngine.echoMix,
     setEchoMix: audioEngine.setEchoMix,
-    vocalBoost: audioEngine.vocalBoost,
-    setVocalBoost: audioEngine.setVocalBoost,
     audioError: audioEngine.error,
     clearAudioError: audioEngine.clearError,
     monitorVolume: audioEngine.monitorVolume,

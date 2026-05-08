@@ -16,7 +16,7 @@ export interface ReverbEffect {
  */
 async function generateImpulse(
   sampleRate: number,
-  durationSec = 1.5
+  durationSec = 1.0
 ): Promise<AudioBuffer> {
   const length = Math.ceil(sampleRate * durationSec);
   const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
@@ -64,8 +64,11 @@ export async function createReverb(ctx: AudioContext): Promise<ReverbEffect> {
   input.connect(dryGain);
   dryGain.connect(output);
 
-  // Wet path
-  input.connect(convolver);
+  // Wet path (with 25ms pre-delay to separate dry voice from reverb onset)
+  const preDelay = ctx.createDelay(0.1);
+  preDelay.delayTime.value = 0.025;
+  input.connect(preDelay);
+  preDelay.connect(convolver);
   convolver.connect(wetGain);
   wetGain.connect(output);
 
@@ -78,6 +81,7 @@ export async function createReverb(ctx: AudioContext): Promise<ReverbEffect> {
 
   function dispose(): void {
     input.disconnect();
+    preDelay.disconnect();
     convolver.disconnect();
     dryGain.disconnect();
     wetGain.disconnect();

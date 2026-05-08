@@ -279,13 +279,13 @@ export class AudioEngine {
     if (enabled) {
       this.vocalHpf.frequency.setTargetAtTime(120, now, 0.01);
       this.lowMidCut.gain.setTargetAtTime(-3, now, 0.01);
-      this.vocalCompressor.threshold.setTargetAtTime(-16, now, 0.01);
+      this.vocalCompressor.threshold.setTargetAtTime(-12, now, 0.01);
       this.vocalCompressor.ratio.setTargetAtTime(3, now, 0.01);
       this.vocalCompressor.knee.setTargetAtTime(10, now, 0.01);
       this.vocalCompressor.attack.setTargetAtTime(0.015, now, 0.01);
       this.vocalCompressor.release.setTargetAtTime(0.1, now, 0.01);
-      this.presenceEq.gain.setTargetAtTime(3, now, 0.01);
-      this.airShelf.gain.setTargetAtTime(2, now, 0.01);
+      this.presenceEq.gain.setTargetAtTime(2, now, 0.01);
+      this.airShelf.gain.setTargetAtTime(1, now, 0.01);
       this.deEsserCompressor.threshold.setTargetAtTime(-20, now, 0.01);
       this.deEsserCompressor.ratio.setTargetAtTime(6, now, 0.01);
       this.deEsserCompressor.knee.setTargetAtTime(0, now, 0.01);

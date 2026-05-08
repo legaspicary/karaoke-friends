@@ -58,6 +58,7 @@ function mungeOpusSdp(sdp: string): string {
       params.set("maxaveragebitrate", "128000");  // 128 kbps — near-transparent for music
       params.set("maxplaybackrate", "48000");     // Full 48 kHz bandwidth
       params.set("cbr", "1");                    // Constant bitrate — no quality dips
+      params.set("useinbandfec", "1");             // Forward error correction for packet loss
 
       const newFmtp = Array.from(params.entries())
         .map(([k, v]) => `${k}=${v}`)
@@ -363,7 +364,7 @@ export class PeerMesh {
    * sender level (complementing the SDP-level fmtp overrides).
    *
    * - "music" (tab audio): 128 kbps — near-transparent for stereo music
-   * - "voice" (singing mic): 64 kbps — well above the 32 kbps speech default
+   * - "voice" (singing mic): 96 kbps — singing has wider tonal range than speech
    */
   private async configureAudioSender(
     sender: RTCRtpSender,
@@ -375,7 +376,7 @@ export class PeerMesh {
     }
 
     for (const encoding of params.encodings) {
-      encoding.maxBitrate = mode === "music" ? 128_000 : 64_000;
+      encoding.maxBitrate = mode === "music" ? 128_000 : 96_000;
     }
 
     try {

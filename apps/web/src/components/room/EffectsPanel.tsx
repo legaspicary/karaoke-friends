@@ -3,37 +3,51 @@
 import { useRoom } from "./RoomProvider";
 
 export function EffectsPanel() {
-  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive } = useRoom();
-
-  if (!isMicActive) return null;
+  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive, engineVersion, setEngineVersion } = useRoom();
 
   return (
     <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
-      <h2 className="text-white/90 font-semibold text-sm tracking-wide uppercase">
-        Vocal Effects
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-white/90 font-semibold text-sm tracking-wide uppercase">
+          Vocal Effects
+        </h2>
+        <select
+          value={engineVersion}
+          onChange={(e) => setEngineVersion(e.target.value as "v1" | "v2")}
+          className="bg-white/10 text-white/80 text-xs rounded-md px-2 py-1 border border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-400"
+        >
+          <option value="v1">V1 — Simple</option>
+          <option value="v2">V2 — Enhanced</option>
+        </select>
+      </div>
 
-      <EffectSlider
-        label="Mic Gain"
-        icon="🎤"
-        value={micGain}
-        onChange={setMicGain}
-        max={2}
-        defaultValue={1}
-      />
+      {isMicActive ? (
+        <>
+          <EffectSlider
+            label="Mic Gain"
+            icon="🎤"
+            value={micGain}
+            onChange={setMicGain}
+            max={2}
+            defaultValue={1}
+          />
 
-      <EffectSlider
-        label="Reverb"
-        icon="🌊"
-        value={reverbMix}
-        onChange={setReverbMix}
-      />
-      <EffectSlider
-        label="Echo"
-        icon="📣"
-        value={echoMix}
-        onChange={setEchoMix}
-      />
+          <EffectSlider
+            label="Reverb"
+            icon="🌊"
+            value={reverbMix}
+            onChange={setReverbMix}
+          />
+          <EffectSlider
+            label="Echo"
+            icon="📣"
+            value={echoMix}
+            onChange={setEchoMix}
+          />
+        </>
+      ) : (
+        <p className="text-white/40 text-xs">Enable mic to adjust effects</p>
+      )}
     </div>
   );
 }

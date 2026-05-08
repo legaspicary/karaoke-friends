@@ -12,7 +12,7 @@ import {
 import { useSignaling, type ConnectionStatus } from "@/hooks/useSignaling";
 import { useRoomState, type RoomState } from "@/hooks/useRoomState";
 import { usePeerMesh } from "@/hooks/usePeerMesh";
-import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { useAudioEngine, type EngineVersion } from "@/hooks/useAudioEngine";
 import { usePeerHealth, type PeerHealthInfo } from "@/hooks/usePeerHealth";
 
 export interface RoomContextValue {
@@ -44,6 +44,8 @@ export interface RoomContextValue {
   setReverbMix: (amount: number) => void;
   echoMix: number;
   setEchoMix: (amount: number) => void;
+  engineVersion: EngineVersion;
+  setEngineVersion: (v: EngineVersion) => void;
   audioError: string | null;
   clearAudioError: () => void;
 
@@ -84,7 +86,8 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     useRoomState(signaling.client);
   const { mesh, remoteStreams, connectionStates } = usePeerMesh(signaling.client);
   const peerHealth = usePeerHealth(mesh);
-  const audioEngine = useAudioEngine();
+  const [engineVersion, setEngineVersion] = useState<EngineVersion>("v1");
+  const audioEngine = useAudioEngine(engineVersion);
 
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
   const [localMicStream, setLocalMicStream] = useState<MediaStream | null>(null);
@@ -108,6 +111,17 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
       hasJoined.current = true;
     }
   }, [signaling.connectionStatus, signaling.join]);
+
+  useEffect(() => {
+    if (!audioEngine.isMicActive && localMicStream) {
+      mesh?.setLocalStream("mic", null);
+      setLocalMicStream(null);
+    }
+    if (!audioEngine.isSharing && localScreenStream) {
+      mesh?.setLocalStream("screen", null);
+      setLocalScreenStream(null);
+    }
+  }, [audioEngine.isMicActive, audioEngine.isSharing, localMicStream, localScreenStream, mesh]);
 
   const myPeerId = roomState.myPeerId;
   const isDJ = myPeerId !== null && roomState.djId === myPeerId;
@@ -160,6 +174,7 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     setReverbMix: audioEngine.setReverbMix,
     echoMix: audioEngine.echoMix,
     setEchoMix: audioEngine.setEchoMix,
+    engineVersion, setEngineVersion,
     audioError: audioEngine.error,
     clearAudioError: audioEngine.clearError,
     monitorVolume: audioEngine.monitorVolume,

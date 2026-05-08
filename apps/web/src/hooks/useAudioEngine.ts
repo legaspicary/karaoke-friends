@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioEngine, type ScreenShareStreams } from "@/lib/audio/engine";
+import { AudioEngineV2 } from "@/lib/audio/engine-v2";
+
+export type EngineVersion = "v1" | "v2";
 
 export interface UseAudioEngineReturn {
   startScreenShare: () => Promise<ScreenShareStreams>;
@@ -25,8 +28,8 @@ export interface UseAudioEngineReturn {
   clearError: () => void;
 }
 
-export function useAudioEngine(): UseAudioEngineReturn {
-  const engineRef = useRef<AudioEngine | null>(null);
+export function useAudioEngine(engineVersion: EngineVersion): UseAudioEngineReturn {
+  const engineRef = useRef<AudioEngine | AudioEngineV2 | null>(null);
 
   const [isSharing, setIsSharing] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
@@ -36,12 +39,12 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [monitorVolume, setMonitorVolumeState] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const getEngine = useCallback((): AudioEngine => {
+  const getEngine = useCallback((): AudioEngine | AudioEngineV2 => {
     if (!engineRef.current) {
-      engineRef.current = new AudioEngine();
+      engineRef.current = engineVersion === "v2" ? new AudioEngineV2() : new AudioEngine();
     }
     return engineRef.current;
-  }, []);
+  }, [engineVersion]);
 
   useEffect(() => {
     return () => {
@@ -49,6 +52,20 @@ export function useAudioEngine(): UseAudioEngineReturn {
       engineRef.current = null;
     };
   }, []);
+
+  const prevVersionRef = useRef(engineVersion);
+  useEffect(() => {
+    if (prevVersionRef.current === engineVersion) return;
+    prevVersionRef.current = engineVersion;
+    engineRef.current?.dispose();
+    engineRef.current = null;
+    setIsSharing(false);
+    setIsMicActive(false);
+    setMicGainState(1);
+    setReverbMixState(0);
+    setEchoMixState(0);
+    setMonitorVolumeState(0);
+  }, [engineVersion]);
 
   const startScreenShare = useCallback(async (): Promise<ScreenShareStreams> => {
     setError(null);

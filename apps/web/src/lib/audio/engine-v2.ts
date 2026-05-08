@@ -225,18 +225,15 @@ export class AudioEngineV2 {
     this.hpf.connect(this.lpf);
     this.lpf.connect(this.compressor);
 
-    // Monitor taps dry signal AFTER compression, BEFORE effects.
-    // AEC sees exactly what comes out of speakers — no reverb/echo confusion.
-    this.compressor.connect(this.monitorGain);
-    this.monitorGain.connect(ctx.destination);
-
-    // Processed path → gain → reverb → echo → output → limiter → WebRTC only
+    // Processed path → gain → reverb → echo → output → limiter → WebRTC + monitor
     this.compressor.connect(this.micGain);
     this.micGain.connect(this.reverb.input);
     this.reverb.output.connect(this.echo.input);
     this.echo.output.connect(this.processedMicGain);
     this.processedMicGain.connect(this.limiter);
     this.limiter.connect(this.micDestination);
+    this.limiter.connect(this.monitorGain);
+    this.monitorGain.connect(ctx.destination);
 
     return this.micDestination.stream;
   }

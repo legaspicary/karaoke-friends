@@ -157,6 +157,11 @@ export class AudioEngine {
     this.micSource = ctx.createMediaStreamSource(this.micStream);
 
     // --- Wiring ---
+    // Monitor taps from mic source BEFORE processing so AEC can model it accurately.
+    // Processed signal only goes to WebRTC (remote peers).
+    this.micSource.connect(this.monitorGain);
+    this.monitorGain.connect(ctx.destination);
+
     // mic → hpf → lowMidCut → compressor → presenceEq → airShelf
     this.micSource.connect(this.vocalHpf);
     this.vocalHpf.connect(this.lowMidCut);
@@ -171,15 +176,13 @@ export class AudioEngine {
     this.deEsserHighpass.connect(this.deEsserCompressor);
     this.deEsserCompressor.connect(this.deEsserMerge);
 
-    // → gain → reverb → echo → output gain → limiter → destination + monitor
+    // → gain → reverb → echo → output gain → limiter → WebRTC destination
     this.deEsserMerge.connect(this.micGain);
     this.micGain.connect(this.reverb.input);
     this.reverb.output.connect(this.echo.input);
     this.echo.output.connect(this.processedMicGain);
     this.processedMicGain.connect(this.limiter);
     this.limiter.connect(this.micDestination);
-    this.limiter.connect(this.monitorGain);
-    this.monitorGain.connect(ctx.destination);
 
     return this.micDestination.stream;
   }

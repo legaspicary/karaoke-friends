@@ -21,6 +21,7 @@ export class AudioEngine {
   private echo: EchoEffect | null = null;
 
   // Vocal recovery (post-AEC compensation)
+  private vocalHpf: BiquadFilterNode | null = null;
   private vocalCompressor: DynamicsCompressorNode | null = null;
   private presenceEq: BiquadFilterNode | null = null;
   private _vocalBoostEnabled = false;
@@ -89,6 +90,11 @@ export class AudioEngine {
       Promise.resolve(createEcho(ctx)),
     ]);
 
+    this.vocalHpf = ctx.createBiquadFilter();
+    this.vocalHpf.type = "highpass";
+    this.vocalHpf.frequency.value = 120;
+    this.vocalHpf.Q.value = 0.7;
+
     this.vocalCompressor = ctx.createDynamicsCompressor();
     this.presenceEq = ctx.createBiquadFilter();
     this.presenceEq.type = "peaking";
@@ -108,8 +114,9 @@ export class AudioEngine {
     this.micDestination = ctx.createMediaStreamDestination();
     this.micSource = ctx.createMediaStreamSource(this.micStream);
 
-    // mic → compressor → presenceEq → gain → reverb → echo → processed gain → destination + monitor
-    this.micSource.connect(this.vocalCompressor);
+    // mic → hpf → compressor → presenceEq → gain → reverb → echo → processed gain → destination + monitor
+    this.micSource.connect(this.vocalHpf);
+    this.vocalHpf.connect(this.vocalCompressor);
     this.vocalCompressor.connect(this.presenceEq);
     this.presenceEq.connect(this.micGain);
     this.micGain.connect(this.reverb.input);
@@ -125,6 +132,7 @@ export class AudioEngine {
   }
 
   stopMic(): void {
+    this.vocalHpf?.disconnect();
     this.vocalCompressor?.disconnect();
     this.presenceEq?.disconnect();
     this.micSource?.disconnect();
@@ -144,6 +152,7 @@ export class AudioEngine {
     this.monitorGain = null;
     this.micDestination = null;
     this.micStream = null;
+    this.vocalHpf = null;
     this.vocalCompressor = null;
     this.presenceEq = null;
   }
@@ -195,10 +204,11 @@ export class AudioEngine {
   }
 
   private applyVocalBoostParams(enabled: boolean): void {
-    if (!this.vocalCompressor || !this.presenceEq || !this.ctx) return;
+    if (!this.vocalCompressor || !this.presenceEq || !this.vocalHpf || !this.ctx) return;
     const now = this.ctx.currentTime;
 
     if (enabled) {
+      this.vocalHpf.frequency.setTargetAtTime(120, now, 0.01);
       this.vocalCompressor.threshold.setTargetAtTime(-24, now, 0.01);
       this.vocalCompressor.ratio.setTargetAtTime(4, now, 0.01);
       this.vocalCompressor.knee.setTargetAtTime(10, now, 0.01);
@@ -206,6 +216,7 @@ export class AudioEngine {
       this.vocalCompressor.release.setTargetAtTime(0.15, now, 0.01);
       this.presenceEq.gain.setTargetAtTime(4, now, 0.01);
     } else {
+      this.vocalHpf.frequency.setTargetAtTime(5, now, 0.01);
       this.vocalCompressor.threshold.setTargetAtTime(0, now, 0.01);
       this.vocalCompressor.ratio.setTargetAtTime(1, now, 0.01);
       this.vocalCompressor.knee.setTargetAtTime(0, now, 0.01);

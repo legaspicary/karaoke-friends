@@ -33,7 +33,7 @@ async function generatePlateImpulse(
     const tailStart = Math.floor(0.04 * sampleRate);
     for (let i = tailStart; i < length; i++) {
       const t = (i - tailStart) / (length - tailStart);
-      data[i] += (Math.random() * 2 - 1) * Math.pow(1 - t, 3.0) * 0.5;
+      data[i] += (Math.random() * 2 - 1) * Math.pow(1 - t, 2.0) * 0.7;
     }
   }
 
@@ -70,12 +70,12 @@ async function createReverbV2(ctx: AudioContext): Promise<ReverbV2> {
   // Wet signal EQ — remove mud and harshness from reverb return
   const wetHpf = ctx.createBiquadFilter();
   wetHpf.type = "highpass";
-  wetHpf.frequency.value = 200;
+  wetHpf.frequency.value = 100;
   wetHpf.Q.value = 0.7;
 
   const wetLpf = ctx.createBiquadFilter();
   wetLpf.type = "lowpass";
-  wetLpf.frequency.value = 8000;
+  wetLpf.frequency.value = 14000;
   wetLpf.Q.value = 0.7;
 
   // Dry path
@@ -93,8 +93,8 @@ async function createReverbV2(ctx: AudioContext): Promise<ReverbV2> {
   function setMix(amount: number): void {
     const a = Math.max(0, Math.min(1, amount));
     const now = ctx.currentTime;
-    dryGain.gain.setTargetAtTime(1.0 - a * 0.3, now, 0.01);
-    wetGain.gain.setTargetAtTime(a * 0.5, now, 0.01);
+    dryGain.gain.setTargetAtTime(1.0 - a * 0.4, now, 0.01);
+    wetGain.gain.setTargetAtTime(a * 0.85, now, 0.01);
   }
 
   function dispose(): void {

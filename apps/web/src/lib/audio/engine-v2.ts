@@ -51,8 +51,19 @@ interface ReverbV2 {
   dispose(): void;
 }
 
+async function loadPlateImpulse(ctx: AudioContext): Promise<AudioBuffer> {
+  const response = await fetch("/audio/emt-140-plate.wav");
+  const arrayBuffer = await response.arrayBuffer();
+  return ctx.decodeAudioData(arrayBuffer);
+}
+
 async function createReverbV2(ctx: AudioContext): Promise<ReverbV2> {
-  const impulse = await generatePlateImpulse(ctx.sampleRate);
+  let impulse: AudioBuffer;
+  try {
+    impulse = await loadPlateImpulse(ctx);
+  } catch {
+    impulse = await generatePlateImpulse(ctx.sampleRate);
+  }
   const convolver = ctx.createConvolver();
   convolver.buffer = impulse;
 

@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from "./messages";
+import type { ClientMessage, ServerMessage } from "@karaoke-friends/shared";
 
 export type SignalingEventMap = {
   message: ServerMessage;

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { RoomProvider } from "@/components/room/RoomProvider";
 import { VideoStage } from "@/components/room/VideoStage";
 import { Sidebar } from "@/components/room/Sidebar";
+import { NowPlaying } from "@/components/room/NowPlaying";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { NameModal } from "./NameModal";
 
@@ -15,7 +16,7 @@ export function RoomPageClient({ roomCode }: RoomPageClientProps) {
   const [playerName, setPlayerName] = useState<string | null>(null);
   const [savedName, setSavedName] = useState<string>("");
   const [isReady, setIsReady] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"watch" | "queue">("watch");
   const [copied, setCopied] = useState(false);
 
   // On mount, load saved name to pre-fill the modal — but always require an
@@ -103,72 +104,60 @@ export function RoomPageClient({ roomCode }: RoomPageClientProps) {
                 </span>
               )}
             </div>
-            {/* Sidebar toggle — visible only on small screens */}
-            <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-              aria-expanded={sidebarOpen}
-              aria-controls="room-sidebar"
-              className="lg:hidden p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-purple-400 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                {sidebarOpen ? (
-                  <>
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </>
-                ) : (
-                  <>
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <line x1="3" y1="12" x2="21" y2="12" />
-                    <line x1="3" y1="18" x2="21" y2="18" />
-                  </>
-                )}
-              </svg>
-            </button>
           </div>
         </header>
 
-        {/* Main content — two-column on lg+, single column below */}
+        {/* Main content — two-column on lg+, tab-based on mobile */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          {/* Left / main column — Video takes full width on mobile */}
-          <main className="flex-1 flex flex-col gap-4 p-4 min-w-0">
-            {/* Video stage fills available height */}
+          {/* Watch tab / left column */}
+          <main className={`flex-1 flex flex-col gap-4 p-4 min-w-0 ${mobileTab !== "watch" ? "hidden lg:flex" : "flex"}`}>
+            <NowPlaying />
             <div className="flex-1 min-h-0">
               <VideoStage />
             </div>
           </main>
 
-          {/* Right column — Sidebar
-              On lg+: always visible as a fixed right panel.
-              Below lg: bottom panel toggled by the header button.
-          */}
+          {/* Queue tab / right column */}
           <aside
             id="room-sidebar"
             aria-label="Room sidebar"
-            className={`
-              lg:w-80 lg:flex-none lg:border-l lg:border-white/5 lg:p-4 lg:overflow-y-auto lg:block
-              ${sidebarOpen ? "block" : "hidden"}
-              w-full border-t border-white/5 p-4 overflow-y-auto max-h-[60vh] lg:max-h-none
-            `}
+            className={`lg:w-80 lg:flex-none lg:border-l lg:border-white/5 lg:p-4 lg:overflow-y-auto ${mobileTab !== "queue" ? "hidden lg:block" : "flex flex-col flex-1"} w-full p-4 overflow-y-auto`}
           >
             <Sidebar />
           </aside>
         </div>
 
-        {/* Footer — connection status */}
-        <footer className="px-6 py-2 border-t border-white/5 flex justify-end">
+        {/* Mobile bottom tab bar */}
+        <nav className="lg:hidden flex border-t border-white/10 bg-black/20 backdrop-blur-sm" aria-label="Mobile navigation">
+          <button
+            onClick={() => setMobileTab("watch")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-bold transition-colors ${mobileTab === "watch" ? "text-purple-400 border-t-2 border-purple-400 -mt-px" : "text-white/40"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            Watch
+          </button>
+          <button
+            onClick={() => setMobileTab("queue")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-bold transition-colors ${mobileTab === "queue" ? "text-purple-400 border-t-2 border-purple-400 -mt-px" : "text-white/40"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            Queue
+          </button>
+        </nav>
+
+        {/* Footer — connection status (desktop only, mobile has bottom tabs) */}
+        <footer className="hidden lg:flex px-6 py-2 border-t border-white/5 justify-end">
           <ConnectionStatus />
         </footer>
       </div>

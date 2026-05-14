@@ -14,6 +14,11 @@ import { useRoomState, type RoomState } from "@/hooks/useRoomState";
 import { usePeerMesh } from "@/hooks/usePeerMesh";
 import { useAudioEngine, type EngineVersion } from "@/hooks/useAudioEngine";
 import { usePeerHealth, type PeerHealthInfo } from "@/hooks/usePeerHealth";
+import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
+import { AudioEngineV3 } from "@/lib/audio/engine-v3";
+import type { VocalPresetName } from "@/lib/audio/presets/vocal-presets";
+import type { ReverbPresetName } from "@/lib/audio/presets/reverb-presets";
+import type { YouTubeSearchResult } from "@karaoke-friends/shared";
 
 export interface RoomContextValue {
   roomState: RoomState;
@@ -32,10 +37,15 @@ export interface RoomContextValue {
   localMicStream: MediaStream | null;
 
   // Room actions
-  addSong: (song: { title: string; url?: string }) => void;
+  addSong: (song: { title: string; url?: string; thumbnail?: string }) => void;
   removeSong: (id: string) => void;
   reorderQueue: (ids: string[]) => void;
   setCurrentSong: (id: string | null) => void;
+  voteSong: (id: string) => void;
+
+  // Playback
+  playSong: (id: string) => void;
+  nextSong: () => void;
 
   // Effects (work on your mic)
   micGain: number;
@@ -48,6 +58,10 @@ export interface RoomContextValue {
   setEngineVersion: (v: EngineVersion) => void;
   audioError: string | null;
   clearAudioError: () => void;
+  vocalPreset: VocalPresetName;
+  setVocalPreset: (preset: VocalPresetName) => void;
+  reverbPreset: ReverbPresetName;
+  setReverbPreset: (preset: ReverbPresetName) => void;
 
   // Volume mixer
   monitorVolume: number;
@@ -56,6 +70,12 @@ export interface RoomContextValue {
   setScreenVolume: (vol: number) => void;
   peerVolumes: Map<string, number>;
   setPeerVolume: (peerId: string, vol: number) => void;
+
+  // YouTube search
+  youtubeSearch: (query: string) => void;
+  youtubeResults: YouTubeSearchResult[];
+  isSearching: boolean;
+  clearSearchResults: () => void;
 
   // WebRTC
   remoteStreams: Map<string, MediaStream>;
@@ -82,12 +102,32 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
   const workerUrl = process.env.NEXT_PUBLIC_PARTY_URL ?? "ws://localhost:8787";
 
   const signaling = useSignaling(roomCode, workerUrl, playerName);
-  const { roomState, addSong, removeSong, reorderQueue, setCurrentSong } =
+  const { roomState, addSong, removeSong, reorderQueue, setCurrentSong, voteSong } =
     useRoomState(signaling.client);
   const { mesh, remoteStreams, connectionStates } = usePeerMesh(signaling.client);
   const peerHealth = usePeerHealth(mesh);
+  const { results: youtubeResults, isSearching, search: youtubeSearch, clearResults: clearSearchResults } = useYouTubeSearch(signaling.client);
   const [engineVersion, setEngineVersion] = useState<EngineVersion>("v1");
   const audioEngine = useAudioEngine(engineVersion);
+
+  const [vocalPreset, setVocalPresetState] = useState<VocalPresetName>("neutral");
+  const [reverbPreset, setReverbPresetState] = useState<ReverbPresetName>("medium-hall");
+
+  const setVocalPreset = useCallback((preset: VocalPresetName) => {
+    const engine = audioEngine.engineRef.current;
+    if (engine instanceof AudioEngineV3) {
+      engine.loadVocalPreset(preset);
+    }
+    setVocalPresetState(preset);
+  }, [audioEngine.engineRef]);
+
+  const setReverbPreset = useCallback((preset: ReverbPresetName) => {
+    const engine = audioEngine.engineRef.current;
+    if (engine instanceof AudioEngineV3) {
+      engine.setReverbPreset(preset);
+    }
+    setReverbPresetState(preset);
+  }, [audioEngine.engineRef]);
 
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
   const [localMicStream, setLocalMicStream] = useState<MediaStream | null>(null);
@@ -161,13 +201,63 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     }
   }, [audioEngine, mesh]);
 
+  const queueRef = useRef(roomState.queue);
+  queueRef.current = roomState.queue;
+  const currentSongIdRef = useRef(roomState.currentSongId);
+  currentSongIdRef.current = roomState.currentSongId;
+
+  const playbackWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    return () => {
+      playbackWindowRef.current?.close();
+      playbackWindowRef.current = null;
+    };
+  }, []);
+
+  const openInYouTube = useCallback((url: string) => {
+    const win = playbackWindowRef.current;
+    if (win && !win.closed) {
+      win.location.href = url;
+      win.focus();
+    } else {
+      playbackWindowRef.current = window.open(url, "karaoke-playback");
+    }
+  }, []);
+
+  const isDJRef = useRef(isDJ);
+  isDJRef.current = isDJ;
+
+  const playSong = useCallback((id: string) => {
+    setCurrentSong(id);
+    if (!isDJRef.current) return;
+    const song = queueRef.current.find((s) => s.id === id);
+    if (song?.url) openInYouTube(song.url);
+  }, [setCurrentSong, openInYouTube]);
+
+  const nextSong = useCallback(() => {
+    const queue = queueRef.current;
+    const curId = currentSongIdRef.current;
+    if (queue.length === 0) return;
+    const idx = queue.findIndex((s) => s.id === curId);
+    if (idx === -1) {
+      playSong(queue[0].id);
+    } else if (idx < queue.length - 1) {
+      playSong(queue[idx + 1].id);
+    } else {
+      setCurrentSong(null);
+    }
+  }, [playSong, setCurrentSong]);
+
+
   const value: RoomContextValue = {
     roomState, myPeerId, isDJ,
     startSharing, stopSharing, isSharing: audioEngine.isSharing,
     localScreenStream,
     toggleMic, isMicActive: audioEngine.isMicActive,
     localMicStream,
-    addSong, removeSong, reorderQueue, setCurrentSong,
+    addSong, removeSong, reorderQueue, setCurrentSong, voteSong,
+    playSong, nextSong,
     micGain: audioEngine.micGain,
     setMicGain: audioEngine.setMicGain,
     reverbMix: audioEngine.reverbMix,
@@ -177,10 +267,13 @@ export function RoomProvider({ roomCode, playerName, children }: RoomProviderPro
     engineVersion, setEngineVersion,
     audioError: audioEngine.error,
     clearAudioError: audioEngine.clearError,
+    vocalPreset, setVocalPreset,
+    reverbPreset, setReverbPreset,
     monitorVolume: audioEngine.monitorVolume,
     setMonitorVolume: audioEngine.setMonitorVolume,
     screenVolume, setScreenVolume,
     peerVolumes, setPeerVolume,
+    youtubeSearch, youtubeResults, isSearching, clearSearchResults,
     remoteStreams, connectionStates,
     connectionStatus: signaling.connectionStatus,
     peerHealth,

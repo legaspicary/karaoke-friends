@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { PeerMesh } from "@/lib/webrtc/mesh";
 import { getIceConfig } from "@/lib/webrtc/ice";
 import type { SignalingClient } from "@/lib/signaling/client";
-import type { ServerMessage } from "@/lib/signaling/messages";
+import type { ServerMessage } from "@karaoke-friends/shared";
 
 export interface UsePeerMeshReturn {
   mesh: PeerMesh | null;

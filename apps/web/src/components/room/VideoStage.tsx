@@ -34,6 +34,15 @@ export function VideoStage() {
   const noDJ = djId === null;
   const remoteDJId = !isDJ && djId !== null && djId !== myPeerId ? djId : null;
   const remoteDJStream = remoteDJId ? remoteStreams.get(remoteDJId) : null;
+  const connectionFailed = connectionStatus === "failed";
+  const djParticipant = djId ? roomState.participants.find((p) => p.id === djId) : null;
+
+  const currentSong = roomState.currentSongId
+    ? roomState.queue.find((s) => s.id === roomState.currentSongId)
+    : null;
+
+  const hasScreenShare = (remoteDJId && remoteDJStream) || (isDJ && localScreenStream);
+  const hasCurrentSong = !connectionFailed && !hasScreenShare && !!currentSong;
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -56,13 +65,6 @@ export function VideoStage() {
     el.play().catch(() => {});
   }, [localScreenStream]);
 
-  const djParticipant = djId ? roomState.participants.find((p) => p.id === djId) : null;
-  const connectionFailed = connectionStatus === "failed";
-
-  // Streams that aren't already played by the DJ <video> element need
-  // their own <audio> so everyone hears each other's mics.
-  // - Non-DJ user: DJ stream plays in <video>, all others need <audio>
-  // - DJ user: local preview is muted, so ALL remote streams need <audio>
   const audioOnlyStreams = Array.from(remoteStreams.entries()).filter(
     ([peerId]) => peerId !== remoteDJId
   );
@@ -77,7 +79,7 @@ export function VideoStage() {
       {/* Video area */}
       <div
         className={`relative w-full flex-1 min-h-0 rounded-2xl overflow-hidden flex flex-col items-center justify-center ${
-          noDJ && !connectionFailed
+          !hasScreenShare && !currentSong && noDJ && !connectionFailed
             ? "bg-[#0f0a1e] ring-2 ring-purple-500/40 motion-safe:animate-pulse-ring"
             : "bg-[#0f0a1e]"
         }`}
@@ -97,20 +99,7 @@ export function VideoStage() {
           </div>
         )}
 
-        {!connectionFailed && noDJ && (
-          <div className="flex flex-col items-center gap-6 text-center px-8">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-purple-500/20 motion-safe:animate-ping" />
-              <div className="relative text-7xl select-none" aria-hidden="true">📺</div>
-            </div>
-            <div>
-              <p className="text-white text-2xl font-bold leading-tight">No one&apos;s sharing yet</p>
-              <p className="text-white/60 text-base mt-2">Share your screen to play karaoke!</p>
-            </div>
-            <ShareButton inStage />
-          </div>
-        )}
-
+        {/* Screen share takes priority when active */}
         {!connectionFailed && remoteDJId && remoteDJStream && (
           <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain rounded-2xl" />
         )}
@@ -132,7 +121,52 @@ export function VideoStage() {
           </>
         )}
 
-        {!connectionFailed && isDJ && !localScreenStream && (
+        {/* Current song playing in YouTube tab — prompt DJ to screen share */}
+        {hasCurrentSong && isDJ && !localScreenStream && (
+          <div className="flex flex-col items-center gap-5 text-center px-8">
+            <div className="text-5xl select-none" aria-hidden="true">🎵</div>
+            <div>
+              <p className="text-white text-xl font-bold">{currentSong.title}</p>
+              <p className="text-white/40 text-sm mt-1.5">
+                Playing in your YouTube tab
+              </p>
+            </div>
+            <ShareButton inStage />
+            <p className="text-white/30 text-xs max-w-xs">
+              Share the YouTube tab so everyone can watch along. The tab will auto-navigate when you hit Next.
+            </p>
+          </div>
+        )}
+
+        {/* Current song — non-DJ waiting for screen share */}
+        {hasCurrentSong && !isDJ && !hasScreenShare && (
+          <div className="flex flex-col items-center gap-4 text-center px-8">
+            <div className="text-5xl select-none" aria-hidden="true">🎵</div>
+            <div>
+              <p className="text-white text-xl font-bold">{currentSong.title}</p>
+              <p className="text-white/40 text-sm mt-1.5">
+                Waiting for {djParticipant?.name ?? "the DJ"} to share their screen…
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state — no screen share, no current song */}
+        {!connectionFailed && !hasScreenShare && !currentSong && noDJ && (
+          <div className="flex flex-col items-center gap-6 text-center px-8">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-purple-500/20 motion-safe:animate-ping" />
+              <div className="relative text-7xl select-none" aria-hidden="true">📺</div>
+            </div>
+            <div>
+              <p className="text-white text-2xl font-bold leading-tight">No one&apos;s sharing yet</p>
+              <p className="text-white/60 text-base mt-2">Share your screen or add a song to the queue!</p>
+            </div>
+            <ShareButton inStage />
+          </div>
+        )}
+
+        {!connectionFailed && isDJ && !localScreenStream && !currentSong && (
           <div className="flex flex-col items-center gap-3 text-center px-8">
             <div className="w-10 h-10 border-4 border-pink-400 border-t-transparent rounded-full motion-safe:animate-spin" />
             <p className="text-white/60 text-lg">Starting your stream…</p>
@@ -143,7 +177,7 @@ export function VideoStage() {
       {/* Controls below video */}
       {!connectionFailed && (
         <div className="flex items-center justify-center gap-3">
-          {!noDJ && <ShareButton />}
+          {(!noDJ || currentSong) && <ShareButton />}
           <MicButton />
         </div>
       )}

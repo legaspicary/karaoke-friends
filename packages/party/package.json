@@ -6,6 +6,7 @@
     "build": "wrangler deploy --dry-run"
   },
   "dependencies": {
+    "@karaoke-friends/shared": "*",
     "partyserver": "^0"
   },
   "devDependencies": {

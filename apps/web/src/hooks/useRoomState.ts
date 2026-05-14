@@ -7,7 +7,7 @@ import type {
   Song,
   ServerMessage,
   ClientMessage,
-} from "@/lib/signaling/messages";
+} from "@karaoke-friends/shared";
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -19,6 +19,8 @@ export interface RoomState {
   djId: string | null;
   queue: Song[];
   currentSongId: string | null;
+  history: Song[];
+  searchCredits: number;
 }
 
 const initialState: RoomState = {
@@ -27,6 +29,8 @@ const initialState: RoomState = {
   djId: null,
   queue: [],
   currentSongId: null,
+  history: [],
+  searchCredits: 50,
 };
 
 // ---------------------------------------------------------------------------
@@ -38,7 +42,8 @@ type Action =
   | { type: "PEER_JOINED"; peer: Participant }
   | { type: "PEER_LEFT"; peerId: string }
   | { type: "DJ_CHANGED"; djId: string | null }
-  | { type: "QUEUE_UPDATED"; queue: Song[]; currentSongId: string | null };
+  | { type: "QUEUE_UPDATED"; queue: Song[]; currentSongId: string | null; history: Song[] }
+  | { type: "CREDITS_UPDATED"; searchCredits: number };
 
 function reducer(state: RoomState, action: Action): RoomState {
   switch (action.type) {
@@ -71,7 +76,11 @@ function reducer(state: RoomState, action: Action): RoomState {
         ...state,
         queue: action.queue,
         currentSongId: action.currentSongId,
+        history: action.history,
       };
+
+    case "CREDITS_UPDATED":
+      return { ...state, searchCredits: action.searchCredits };
 
     default:
       return state;
@@ -88,10 +97,11 @@ export interface UseRoomStateReturn {
   // Actions — these send messages to the signaling server
   takeMic: () => void;
   dropMic: () => void;
-  addSong: (song: { title: string; url?: string }) => void;
+  addSong: (song: { title: string; url?: string; thumbnail?: string }) => void;
   removeSong: (id: string) => void;
   reorderQueue: (ids: string[]) => void;
   setCurrentSong: (id: string | null) => void;
+  voteSong: (id: string) => void;
 }
 
 export function useRoomState(
@@ -114,6 +124,8 @@ export function useRoomState(
               djId: msg.djId,
               queue: msg.queue,
               currentSongId: msg.currentSongId,
+              history: msg.history,
+              searchCredits: msg.searchCredits,
             },
           });
           break;
@@ -135,11 +147,16 @@ export function useRoomState(
             type: "QUEUE_UPDATED",
             queue: msg.queue,
             currentSongId: msg.currentSongId,
+            history: msg.history,
           });
           break;
 
+        case "credits-updated":
+          dispatch({ type: "CREDITS_UPDATED", searchCredits: msg.searchCredits });
+          break;
+
         default:
-          // signal, error — handled elsewhere
+          // signal, error, youtube-search-results — handled elsewhere
           break;
       }
     };
@@ -161,7 +178,7 @@ export function useRoomState(
   const dropMic = useCallback(() => send({ type: "drop-mic" }), [send]);
 
   const addSong = useCallback(
-    (song: { title: string; url?: string }) =>
+    (song: { title: string; url?: string; thumbnail?: string }) =>
       send({ type: "queue-add", song }),
     [send]
   );
@@ -181,6 +198,11 @@ export function useRoomState(
     [send]
   );
 
+  const voteSong = useCallback(
+    (id: string) => send({ type: "queue-vote", id }),
+    [send]
+  );
+
   return {
     roomState,
     takeMic,
@@ -189,5 +211,6 @@ export function useRoomState(
     removeSong,
     reorderQueue,
     setCurrentSong,
+    voteSong,
   };
 }

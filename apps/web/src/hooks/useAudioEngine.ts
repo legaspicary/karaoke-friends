@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AudioEngine, type ScreenShareStreams } from "@/lib/audio/engine";
 import { AudioEngineV2 } from "@/lib/audio/engine-v2";
+import { AudioEngineV3 } from "@/lib/audio/engine-v3";
 
-export type EngineVersion = "v1" | "v2";
+export type EngineVersion = "v1" | "v2" | "v3";
 
 export interface UseAudioEngineReturn {
   startScreenShare: () => Promise<ScreenShareStreams>;
@@ -26,10 +27,12 @@ export interface UseAudioEngineReturn {
 
   error: string | null;
   clearError: () => void;
+
+  engineRef: React.RefObject<AudioEngine | AudioEngineV2 | AudioEngineV3 | null>;
 }
 
 export function useAudioEngine(engineVersion: EngineVersion): UseAudioEngineReturn {
-  const engineRef = useRef<AudioEngine | AudioEngineV2 | null>(null);
+  const engineRef = useRef<AudioEngine | AudioEngineV2 | AudioEngineV3 | null>(null);
 
   const [isSharing, setIsSharing] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
@@ -39,9 +42,13 @@ export function useAudioEngine(engineVersion: EngineVersion): UseAudioEngineRetu
   const [monitorVolume, setMonitorVolumeState] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const getEngine = useCallback((): AudioEngine | AudioEngineV2 => {
+  const getEngine = useCallback((): AudioEngine | AudioEngineV2 | AudioEngineV3 => {
     if (!engineRef.current) {
-      engineRef.current = engineVersion === "v2" ? new AudioEngineV2() : new AudioEngine();
+      engineRef.current = engineVersion === "v3"
+        ? new AudioEngineV3()
+        : engineVersion === "v2"
+          ? new AudioEngineV2()
+          : new AudioEngine();
     }
     return engineRef.current;
   }, [engineVersion]);
@@ -137,5 +144,6 @@ export function useAudioEngine(engineVersion: EngineVersion): UseAudioEngineRetu
     echoMix, setEchoMix,
     monitorVolume, setMonitorVolume,
     error, clearError,
+    engineRef: engineRef as React.RefObject<AudioEngine | AudioEngineV2 | AudioEngineV3 | null>,
   };
 }

@@ -5,7 +5,7 @@ import {
   SignalingClient,
   type SignalingEventMap,
 } from "@/lib/signaling/client";
-import type { ClientMessage, ServerMessage } from "@/lib/signaling/messages";
+import type { ClientMessage, ServerMessage } from "@karaoke-friends/shared";
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "failed";
 

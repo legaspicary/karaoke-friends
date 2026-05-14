@@ -1,9 +1,10 @@
 "use client";
 
 import { useRoom } from "./RoomProvider";
+import type { ReverbPresetName } from "@/lib/audio/presets/reverb-presets";
 
 export function EffectsPanel() {
-  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive, engineVersion, setEngineVersion } = useRoom();
+  const { micGain, setMicGain, reverbMix, setReverbMix, echoMix, setEchoMix, isMicActive, engineVersion, setEngineVersion, vocalPreset, setVocalPreset, reverbPreset, setReverbPreset } = useRoom();
 
   return (
     <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
@@ -13,11 +14,12 @@ export function EffectsPanel() {
         </h2>
         <select
           value={engineVersion}
-          onChange={(e) => setEngineVersion(e.target.value as "v1" | "v2")}
+          onChange={(e) => setEngineVersion(e.target.value as "v1" | "v2" | "v3")}
           className="bg-white/10 text-white/80 text-xs rounded-md px-2 py-1 border border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-400"
         >
           <option value="v1">V1 — Simple</option>
           <option value="v2">V2 — Enhanced</option>
+          <option value="v3">V3 — Studio</option>
         </select>
       </div>
 
@@ -44,6 +46,44 @@ export function EffectsPanel() {
             value={echoMix}
             onChange={setEchoMix}
           />
+
+          {engineVersion === "v3" && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-white/60 text-xs font-medium ml-9">Vocal Preset</span>
+                <div className="flex gap-2 ml-9">
+                  {(["warm", "bright", "neutral"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setVocalPreset(p)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
+                        vocalPreset === p
+                          ? "bg-purple-500/30 text-white border-purple-400/50"
+                          : "bg-white/10 text-white/70 hover:bg-purple-500/20 border-white/10"
+                      }`}
+                    >
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-white/60 text-xs font-medium ml-9">Reverb Type</span>
+                <select
+                  value={reverbPreset}
+                  onChange={(e) => setReverbPreset(e.target.value as ReverbPresetName)}
+                  className="ml-9 bg-white/10 text-white/80 text-xs rounded-md px-2 py-1.5 border border-white/10 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                >
+                  <option value="small-room">Small Room</option>
+                  <option value="medium-hall">Medium Hall</option>
+                  <option value="large-hall">Large Hall</option>
+                  <option value="plate">Plate</option>
+                  <option value="spring">Spring</option>
+                </select>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <p className="text-white/40 text-xs">Enable mic to adjust effects</p>

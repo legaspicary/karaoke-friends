@@ -1,0 +1,15 @@
+{
+  "name": "audio-dsp",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "audio_dsp_bg.wasm",
+    "audio_dsp.js",
+    "audio_dsp.d.ts"
+  ],
+  "main": "audio_dsp.js",
+  "types": "audio_dsp.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
